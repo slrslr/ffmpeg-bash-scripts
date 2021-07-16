@@ -1,0 +1,48 @@
+#!/bin/bash
+echo -e "This script converts all files in a defined directory so it has same dimensions/resolution while keeping aspect ratio (handy for merging the files) later."
+read -r -p "1/3 Directory:" dir;dir="$(echo $dir | sed 's:/*$::')"
+echo "Following will be processed:";ls -A1 "$dir"|grep -v ".directory"|grep "\.";sleep 3;
+echo -e "\n\nCurrent files parameters:"
+while read -r file; do
+mediainfo "$dir/$file"|grep -E "Complete name|Codec ID|Width|Height|Sampling rate|aspect"
+echo -e "\n"
+done <<< "$(ls -A1 "$dir"|grep -Ev "html5ified-dummy.mkv|llc-edl.csv"|grep "\.")"
+
+#echo -e "Current file parameters:\n";mediainfo "$dir"/*|grep -E "Width|Height|aspect";echo -e "\n";
+read -r -p "2/4 Set destination video width in pixels (example: 640):" width
+read -r -p "2/4 Set destination video height in pixels (example: 360 OR -2 to detect correct):" height
+#read -r -p "3/4 Set destination video bitrate. If source is 900, maybe set 1200 since destination codec may be less efficient):" vbitrate
+read -r -p "3/4 Set destination video frame rate (example value 25 or 29.970):" vfps
+read -r -p "4/4 Set destination video sound sampling rate in kHz (type 44 or 48)" sr
+#read -r -p "2/3 Set destination video dimensions (example: 640x360):" d;d=$(echo "$d"|sed -e "s|x|:|g")
+#read -r -p "3/3 Set destination aspect ratio (example: 4/3, 16/9) or hit enter to skip:" a;if [[ "$a" == *"/"* ]]; then aspect=",setdar=dar=$a"; else exit; fi
+
+# Define video bitrate for the resulting video (called in the ffmpeg command)
+#srcvideobitrate0=$(mediainfo "$f"|grep --no-ignore-case "Bit rate"|head -n 1|sed 's/[^0-9]*//g');echo -e "Source video stream bitrate: $srcvideobitrate"
+#vbitrate=$( echo "$srcvideobitrate0*1.5" )
+
+extension=mp4 # set common resulting extension
+
+##########################################################################
+
+#mkdir $dir/new 2>/dev/null
+while read -r f; do
+filename=$(basename -- "$f");extension="${filename##*.}";filename="${filename%.*}";
+#ffmpeg -nostdin -i "$dir/$f" -vf "scale=$width:$height,setsar=1" -b:v "$vbitrate"k -ar "$sr"000 "$dir/$filename.scalled.$extension"
+#ffmpeg -nostdin -i "$dir/$f" -vf "setsar=1" -b:v "$vbitrate"k -ar "$sr"000 "$dir/$f.scalled.$extension"
+#ffmpeg -nostdin -i "$dir/$f" -vf "setsar=1" -c:v libx264 -profile:v high -level:v 3.0 -c:a aac -ar "$sr"000 "$dir/$f.scalled.$extension"
+#ffmpeg -nostdin -vaapi_device /dev/dri/renderD128 -i "$dir/$f" -vf "format=nv12,hwupload" -c:v h264_vaapi -f mp4 -rc_mode 1 -qp "26" -c:a aac -ar "$sr"000 "$dir/$f.scalled.$extension"
+#ffmpeg -nostdin -i "$dir/$f" -vf "scale=$width:$height,setsar=1" -c:v libx264 -f mp4 -rc_mode 1 -qp "26" -r "$vfps" -c:a aac -ar "$sr"000 "$dir/$f.scalled.$extension"
+#funguje ale nemeni dimension: ffmpeg -nostdin -vaapi_device /dev/dri/renderD128 -i "$dir/$f" -vf "format=nv12,hwupload" -c:v h264_vaapi -f mp4 -rc_mode 1 -qp "26" -r "$vfps" -c:a aac -ar "$sr"000 "$dir/$f.scalled.$extension"
+#notworks:ffmpeg -nostdin -vaapi_device /dev/dri/renderD128 -i "$dir/$f" -vf "format=scale=$width:$height" -c:v libx264 -f mp4 -rc_mode 1 -qp "26" -r "$vfps" -c:a aac -ar "$sr"000 "$dir/$f.scalled.$extension"
+#try this if hw fails: ffmpeg -nostdin -i "$dir/$f" -vf "scale=$width:$height,setsar=1" -c:v libx264 -f mp4 -rc_mode 1 -qp "26" -r "$vfps" -c:a aac -ar "$sr"000 "$dir/$f.scalled.$extension"
+ffmpeg -nostdin -vaapi_device /dev/dri/renderD128 -i "$dir/$f" -vf "scale=$width|$height" -c:v libx264 -f mp4 -rc_mode 1 -qp "26" -r "$vfps" -c:a aac -ar "$sr"000 "$dir/$f.scalled.$extension"
+
+done <<< "$(ls -A1 "$dir"|grep -v ".directory")"
+
+
+mediainfo "$dir/$filename.scalled.$extension"|grep -E "Width|Height|aspect";
+echo -e "\nResulting new files are in same folder, only having .scalled. name."
+#read -r -p "Hit enter to play the resulting file:" p;if [[ "$p" == "" ]]; then mpv "$dir/$filename.scalled.$extension"; fi;
+
+exit

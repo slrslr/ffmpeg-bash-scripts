@@ -1,0 +1,37 @@
+#!/bin/bash
+echo -e "This script should help using ffmpeg to shift/offset the audio track in video file in order to synchronize the audio with the video.\nUsage: ./scriptname \"/full/Path/to/video.file\""
+
+# define path to file
+if [[ "$1" == "" ]]; then read -r -p "1. Enter full path to file:" file; else file="$1"; fi
+# file really exist?
+if [[ -f "$file" ]]; then echo "File exist." && filenew="$(basename "$file")"; else ls -l "$file";exit; fi
+
+# set the output directory for the test file
+if [ -d "/dev/shm" ]; then tmpdir=/dev/shm; else tmpdir=/home/$(whoami); fi
+
+# shift/offset direction
+read -r -p "Audio is delayed (-) or early (Enter)?" direction
+# shift/offset miliseconds
+read -r -p "How many seconds to move/shift the audio? (examples: 1 or 1.5)" time
+# preview start time
+#read -r -p "We will preview the result. At which minute and second start preview playback? (example: 5:05) or enter for 0:00:" previewtimestart;if [[ "$previewtimestart" == "" ]]; then previewtimestart="0:00"; fi
+# preview length
+#read -r -p "Length of the preview (example: 0:15) or enter for 0:30:" previewtime;if [[ "$previewtime" == "" ]]; then previewtime="0:30"; fi
+
+#ffmpeg -ss "$previewtimestart" -i "$file" -vcodec copy -acodec copy -t 0:15 "$filenam".preview."$fileext"|ffplay -
+#ffmpeg -ss "$previewtimestart" -itsoffset "$direction""$time" -i "$file" -async 1 -vcodec copy -acodec copy -t 0:30 /dev/shm/out."$fileext";
+#ffmpeg -itsoffset "$direction""$time" -i "$file" -async 1 -vcodec copy -acodec copy /dev/shm/outfull."$fileext";
+#ffmpeg -i clip.mp4 -itsoffset 0.150 -i clip.mp4 -vcodec copy -acodec copy -map 0:0 -map 1:1 output.mp4
+
+# preview create
+#ffmpeg -ss "$previewtimestart" -i "$file" -itsoffset "$direction""$time" -i "$file" -map 0:v -map 1:a -c copy -t "$previewtime" "$tmpdir"/"$filenew"
+# preview play
+#echo "EDITED VIDEO PREVIEW:";sleep 2;timeout -s term 99999 vlc "$tmpdir"/"$filenew" &>/dev/null;rm -f "$tmpdir"/"$filenew"
+#read -r -p "Is the preview audio/video in sync? If no, do Ctrl+C or any other key to proceed with whole file remux/sync:" p
+# full create
+ffmpeg -i "$file" -itsoffset "$direction""$time" -i "$file" -map 0:v -map 1:a -c copy "$tmpdir"/"$filenew"
+# full play
+echo "EDITED VIDEO FULL:";sleep 2;vlc "$tmpdir"/"$filenew" &>/dev/null
+read -r -p "Edited video full has synchronized audio & video? If yes, type y key and enter or any other key to delete temporary files:" p
+# full OK?
+if [[ "$p" == "y" ]]; then mv -i -v "$tmpdir"/"$filenew" "$file"; else rm -v -f "$tmpdir"/"$filenew"; fi

@@ -1,0 +1,23 @@
+#!/bin/bash
+# Linux bash script to help denoise video using various ffmpeg filters.
+# H264 libx264 encoder is used for filters. H265 available under nofilter option.
+
+c=libx264
+read -r -p "Enter path to video file to de-noise (original file will be kept untouched): " i
+#read -r -p "De-noise filter? y=yes or other key to skip: " nf
+read -r -p "Quality (def.25, more is lower size and quality, less is opposite): " q;if [[ "$q" == "" ]]; then q=25; fi
+echo -e "FILTERS:
+fps35 hqdn3d: noise is gone, a bit blurry, but 20% lower file size than others
+fps10 nlmeans: noise is still a bit visible, too slow
+fps30 atadenoise: noise almost gone, good quality, fast
+fps10 vaguedenoiser: similar to atadenoise, best quality, 3x lower speed than atadenoise!
+fps35 nofilter, just libx264 mp4 - Noise is reduced from original even no filter specified, good choice
+"
+read -r -p "Which de-noise filter to use? nlmeans,nofilter,atadenoise,hqdn3d,vaguedenoiser " filter
+if [[ "$filter" == "nlmeans" ]]; then filter="nlmeans='1.0:7:5:3:3' "; fi
+if [[ "$filter" == "nofilter" ]]; then
+filter="format=nv12,hwupload "
+read -r -p "Better quality denoise & lower file size using less supported HEVC codec? type: hevc_vaapi or h264_vaapi" c;
+fi
+
+ffmpeg -vaapi_device /dev/dri/renderD128 -i "$i" -vf "$filter" -c:v $c -f mp4 -rc_mode 1 -qp "$q" -max_muxing_queue_size 1024 "$i".$c.q"$q"."$filter".mp4

@@ -1,8 +1,10 @@
 # ffmpeg-bash-scripts
-Bash scripts to help with ffmpeg tasks
+Linux Bash scripts to help with ffmpeg tasks
 
-**ffmpegdenoisegrain** - Linux bash script to help denoise video using various ffmpeg filters.
+**ffmpegconvert** - convert folder of videos or single video to .mp4 format (H264 or H265-HEVC) using HW acceleration & with user defined quality preserving original file
 
-**ffmpegscaleall** - This script helps converting all files in a defined directory so it has same dimensions/resolution (while keeping aspect ratio), fps, audio frequency,  (handy for merging the files) later
+**ffmpegdenoisegrain** - denoise video using various ffmpeg filters.
 
-**ffmpegsyncaudiotovideo** - This script should help using ffmpeg to shift/offset the audio track in video file in order to synchronize the audio with the video
+**ffmpegscaleall** - convert all files in a defined directory so it has same dimensions/resolution (while keeping aspect ratio), fps, audio frequency,  (handy for merging the files) later
+
+**ffmpegsyncaudiotovideo** - shift/offset the audio track in video file in order to synchronize the audio with the video

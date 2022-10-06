@@ -1,0 +1,48 @@
+#!/usr/bin/bash
+# Script to convert video file (or folder of files) using ffmpeg with HW accelerated (VAAPI) encoder to H264 or HEVC
+# Usage: ./scriptname OR ./scriptname "file or folder path"
+#set -xv
+ftypes=".mp4|.mkv|.avi|.wmv|.webm|.mpeg|.mpg|.flv|.ts"
+exclfnames=".torrent|excludee2"
+
+read -r -p "Work with single file or multiple files (type s or m)?" mode
+d="$1";read -r -p "Input directory (with ending slash!) or file path to video. Enter = $(pwd)):" d;if [ "$d" == "" ]; then d="$(pwd)";fi
+select c in hevc_vaapi h264_vaapi;do break;done
+
+if [[ "$c" == "hevc_vaapi" ]]; then read -r -p "Quality: 25=identic, 30=a bit worse but small file size, or other numbers:" q;profilelvl="-profile:v main -tier high"
+elif [[ "$c" == "h264_vaapi" ]]; then read -r -p "Quality: 18=identic, 25=a bit worse but small file size, or other numbers:" q;profilelvl="-profile:v high"
+fi
+read -r -p "Bitrate limit? enter=no, or enter value in kilobit, for example 4000(720p) - it will skip -qp:" bitlim
+echo "Parameters specified: $1.";
+
+########### single file mode ##############
+if [[ "$mode" == "s" ]]; then
+i="$d" # leave this unless above file selection mapfile loop is ectivated
+mediainfo "$i"|grep -E "Bit rate  |Codec ID" --no-ignore-case;read -r -p "What to do with audio track? copy (fast, preserve quality), aac (128kb, low size)" a
+frameratemode=cfr;if [[ "$(mediainfo "$i"|grep ""Frame rate Mode"")" == *"Variable"* ]]; then frameratemode=vbr; fi
+vaapi="-vaapi_device /dev/dri/renderD128";vf="-vf format=nv12,hwupload";bitrateorqp="$(if [[ "$bitlim" != "" ]]; then echo "-b:v $bitlim"k; else echo "-qp $q"; fi)";
+ffmpeg $vaapi -i "$i" $vf -c:a "$a" -c:v $c -vsync $frameratemode $bitrateorqp $profilelvl \
+-max_muxing_queue_size 1024 "$i".$c.q"$q".mp4
+# was  -f mp4 is said that defining this is not needed in most cases, if want mkv i have to remove this switch.
+# -rc_mode 1 - (1=auto?) 130fps, without is 140fps no size quality or parameter change, CQP-constant quality=90fps - i see no quality, size difference. QVBR not supported by driver
+# missing "-c:a copy" cause audio recoding to AAC-LC which decrease quality and bitrate
+# .mkv ext = 70fps, recoding to vorbis audio & Variable video bitrate, better file size than mp4 CBR, 125fps if -c:a copy.
+
+###########  multiple files mode #############
+elif [[ "$mode" == "m" ]]; then
+if [ -d /dev/shm/ ];then tmpf=/dev/shm/videofiles; else tmpf=/tmp/videofiles; fi;rm -f "$tmpf";ls -A1 "$d"|grep -Ei "$ftypes"|grep -Ev "$exclfnames" >> "$tmpf";
+echo "Files to convert using $c q$q:";cat "$tmpf";read -r -p "Enter to list mediainfo:" ui;
+cat "$tmpf"||while read -r f; do mediainfo "$d""$f"|grep -E "Bit rate  |Codec ID" --no-ignore-case; done
+#for f in $(cat "$tmpf"); do mediainfo "$d""$f"|grep -E "Bit rate  |Codec ID" --no-ignore-case; done
+read -r -p "Audio track: copy (fast, preserve quality), aac (128kb, low size)" a
+
+cat "$tmpf"|while read -r file; do
+echo "$d""$file"
+frameratemode=cfr;if [[ "$(mediainfo "$d""$file"|grep \"Frame rate Mode\")" == *"Variable"* ]]; then frameratemode=vbr; fi
+vaapi="-vaapi_device /dev/dri/renderD128";vf="-vf format=nv12,hwupload";bitrateorqp="$(if [[ "$bitlim" != "" ]]; then echo "-b:v $bitlim"k; else echo "-qp $q"; fi)";
+ffmpeg -nostdin -loglevel info $vaapi -i "$d""$file" $vf -map 0 -c:s mov_text -c:a "$a" -c:v $c -vsync $frameratemode $bitrateorqp $profilelvl \
+-max_muxing_queue_size 1024 "$d""$file".$c.q"$q".mp4
+#OLD: ffmpeg -nostdin -vaapi_device /dev/dri/renderD128 -i "$d"/"$f" -vf 'format=nv12,hwupload' -c:a "$a" -c:v $c -vsync vbr $(if [[ "$bitlim" != "" ]]; then echo "-b:v $bitlim"k; else echo "-qp $q"; fi) -max_muxing_queue_size 1024 "$d"/"$f".$c.q"$q".mp4
+done
+rm -f "$tmpf"
+fi

@@ -1,0 +1,9 @@
+#!/bin/bash
+# Define video file from which ffmpeg will make .jpg screenshot images every X seconds
+
+read -r -p "1/4 Path to video file from which to make screenshots/snapshots:" f
+read -r -p "2/4 Resulting (jpg) images file names (if you enter \"abcd\", then it will be like abcd_0001.jpg, abcd_0002.jpg ...):" fname
+read -r -p "3/4 Path where to place screenshots (possibly define some new directory, script will create it):" d && mkdir -p "$d"
+read -r -p "4/4 Time delay between screenshots/snapshots in seconds (it can be whole or decimal number like 6 or 0.5):" t
+ffmpeg  -loglevel warning -i "$f" -vf "select='not(mod(t,"$t"))'" -vsync vfr "$d"/"$fname"_%04d.jpg
+echo "Despite warnings, it may have worked."
